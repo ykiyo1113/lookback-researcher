@@ -112,6 +112,21 @@
 
     /* 空状態 */
     .empty { padding: 40px; text-align: center; color: #bbb; font-size: 14px; }
+
+    /* 使用カウンター */
+    .usage-bar {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 20px; font-size: 13px; color: #888;
+    }
+    .usage-track {
+      flex: 1; height: 6px; background: #e0e4ea; border-radius: 3px; overflow: hidden;
+    }
+    .usage-fill {
+      height: 100%; background: #4361ee; border-radius: 3px;
+      transition: width 0.4s;
+    }
+    .usage-fill.warn  { background: #f59e0b; }
+    .usage-fill.alert { background: #ef4444; }
   </style>
 </head>
 <body>
@@ -121,6 +136,14 @@
       <h1>🔍 担当者リサーチ</h1>
       <p>会社名を入力すると、PR TIMES・会社HP・Wantedly・LinkedIn から担当者を自動収集します。</p>
     </header>
+
+    <!-- 月間使用カウンター -->
+    <div class="usage-bar" id="usageBar">
+      <span id="usageText">今月: 0 / 500 回</span>
+      <div class="usage-track">
+        <div class="usage-fill" id="usageFill" style="width:0%"></div>
+      </div>
+    </div>
 
     <div class="search-box">
       <input type="text" id="company" placeholder="例: 株式会社コスメ堂" autocomplete="off">
@@ -161,6 +184,37 @@
   </div>
 
   <script>
+    // ─── 月間使用カウンター ───────────────────────────────────────────
+    const MONTHLY_LIMIT = 500; // 無料1000リクエスト ÷ 2リクエスト/社
+
+    function getUsageKey() {
+      const d = new Date();
+      return `brave_usage_${d.getFullYear()}_${d.getMonth() + 1}`;
+    }
+
+    function getUsageCount() {
+      return parseInt(localStorage.getItem(getUsageKey()) || '0', 10);
+    }
+
+    function incrementUsage() {
+      const key = getUsageKey();
+      const count = getUsageCount() + 1;
+      localStorage.setItem(key, count);
+      updateUsageUI(count);
+    }
+
+    function updateUsageUI(count) {
+      const pct = Math.min((count / MONTHLY_LIMIT) * 100, 100);
+      document.getElementById('usageText').textContent =
+        `今月: ${count} / ${MONTHLY_LIMIT} 回（残り ${Math.max(MONTHLY_LIMIT - count, 0)} 回）`;
+      const fill = document.getElementById('usageFill');
+      fill.style.width = pct + '%';
+      fill.className = 'usage-fill' + (pct >= 90 ? ' alert' : pct >= 70 ? ' warn' : '');
+    }
+
+    // ページ読み込み時にカウンターを表示
+    updateUsageUI(getUsageCount());
+
     const SOURCE_KEY = {
       'PR TIMES': 'prtimes',
       '会社HP':   'hp',
@@ -187,6 +241,7 @@
       if (!company) return;
 
       reset();
+      incrementUsage();
       document.getElementById('searchBtn').disabled = true;
 
       // currentEs にこの検索のEventSourceを固定する
