@@ -250,9 +250,13 @@
       }).join('');
     }
 
-    // Enter キーで検索
-    document.getElementById('company').addEventListener('keydown', e => {
-      if (e.key === 'Enter') startSearch();
+    // Enter キーで検索（IME変換中のEnterは除外）
+    let isComposing = false;
+    const companyInput = document.getElementById('company');
+    companyInput.addEventListener('compositionstart', () => { isComposing = true; });
+    companyInput.addEventListener('compositionend',   () => { isComposing = false; });
+    companyInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !isComposing) startSearch();
     });
 
     // ブラウザのbfcache（戻るボタン等でのページ復元）対策
