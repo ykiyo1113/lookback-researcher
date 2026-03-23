@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>担当者リサーチ</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    .container { max-width: 760px; margin: 0 auto; padding: 48px 20px; }
+
+    /* ヘッダー */
+    header { margin-bottom: 36px; }
+    header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+    header p  { color: #666; margin-top: 6px; font-size: 13px; line-height: 1.6; }
+
+    /* 検索ボックス */
+    .search-box { display: flex; gap: 10px; margin-bottom: 28px; }
+    .search-box input {
+      flex: 1; padding: 13px 16px; font-size: 15px;
+      border: 2px solid #e0e4ea; border-radius: 10px;
+      outline: none; background: white; transition: border-color 0.2s;
+    }
+    .search-box input:focus { border-color: #4361ee; }
+    .search-box button {
+      padding: 13px 24px; background: #4361ee; color: white;
+      border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
+      cursor: pointer; white-space: nowrap; transition: background 0.2s, opacity 0.2s;
+    }
+    .search-box button:hover   { background: #3451d1; }
+    .search-box button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ソースバッジ */
+    .sources {
+      display: none; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
+    }
+    .badge {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+      border: 1.5px solid #e0e4ea; background: #f8f9fb; color: #aaa;
+      transition: all 0.3s;
+    }
+    .badge .dot {
+      width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+    }
+    .badge.checking {
+      background: #fffbeb; color: #d97706; border-color: #fcd34d;
+    }
+    .badge.checking .dot { animation: pulse 0.9s infinite; }
+    .badge.found  { background: #ecfdf5; color: #059669; border-color: #6ee7b7; }
+    .badge.empty  { background: #f8f9fb; color: #aaa;    border-color: #e0e4ea; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+    /* ドメイン */
+    .domain-card {
+      display: none; background: white; border-radius: 10px;
+      padding: 14px 18px; margin-bottom: 16px;
+      border: 1px solid #e0e4ea;
+    }
+    .domain-card.visible { display: block; }
+    .domain-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .domain-value { font-size: 16px; font-weight: 600; color: #1a1a2e; }
+
+    /* 結果テーブル */
+    .result-card {
+      display: none; background: white; border-radius: 10px;
+      overflow: hidden; border: 1px solid #e0e4ea;
+    }
+    .result-card.visible { display: block; }
+    .result-card-header {
+      padding: 14px 20px; border-bottom: 1px solid #f0f2f5;
+      font-weight: 600; font-size: 14px; color: #555;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #f8f9fb; }
+    th {
+      padding: 10px 18px; text-align: left;
+      font-size: 12px; color: #888; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    td { padding: 13px 18px; border-top: 1px solid #f4f5f7; font-size: 14px; }
+    tr:hover td { background: #fafbfc; }
+
+    .name { font-weight: 600; }
+    .role { color: #555; font-size: 13px; }
+
+    /* 信頼度バッジ */
+    .conf {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 22px; border-radius: 5px;
+      font-size: 13px; font-weight: 700;
+    }
+    .conf-a { background: #d1fae5; color: #065f46; }
+    .conf-b { background: #fef3c7; color: #92400e; }
+    .conf-c { background: #f3f4f6; color: #6b7280; }
+
+    /* ソースタグ */
+    .tag {
+      display: inline-block; padding: 2px 8px; border-radius: 5px;
+      font-size: 11px; font-weight: 500;
+      background: #eef2ff; color: #4361ee; margin: 2px 2px 2px 0;
+    }
+
+    /* 空状態 */
+    .empty { padding: 40px; text-align: center; color: #bbb; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <h1>🔍 担当者リサーチ</h1>
+      <p>会社名を入力すると、PR TIMES・会社HP・Wantedly・LinkedIn から担当者を自動収集します。</p>
+    </header>
+
+    <div class="search-box">
+      <input type="text" id="company" placeholder="例: 株式会社コスメ堂" autocomplete="off">
+      <button id="searchBtn" onclick="startSearch()">検索</button>
+    </div>
+
+    <!-- ソースステータス -->
+    <div class="sources" id="sources">
+      <div class="badge" id="badge-prtimes"><span class="dot"></span>PR TIMES</div>
+      <div class="badge" id="badge-hp">      <span class="dot"></span>会社HP</div>
+      <div class="badge" id="badge-wantedly"><span class="dot"></span>Wantedly</div>
+      <div class="badge" id="badge-linkedin"><span class="dot"></span>LinkedIn</div>
+    </div>
+
+    <!-- ドメイン表示 -->
+    <div class="domain-card" id="domainCard">
+      <div class="domain-label">取得ドメイン</div>
+      <div class="domain-value" id="domainValue">—</div>
+    </div>
+
+    <!-- 担当者テーブル -->
+    <div class="result-card" id="resultCard">
+      <div class="result-card-header">担当者候補</div>
+      <table>
+        <thead>
+          <tr>
+            <th>名前</th>
+            <th>役職</th>
+            <th>信頼度</th>
+            <th>ソース</th>
+          </tr>
+        </thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+      <div id="emptyMsg" class="empty" style="display:none">担当者が見つかりませんでした</div>
+    </div>
+
+  </div>
+
+  <script>
+    const SOURCE_KEY = {
+      'PR TIMES': 'prtimes',
+      '会社HP':   'hp',
+      'Wantedly': 'wantedly',
+      'LinkedIn': 'linkedin',
+    };
+
+    let es = null;
+
+    function reset() {
+      if (es) { es.close(); es = null; }
+      document.getElementById('resultBody').innerHTML = '';
+      document.getElementById('resultCard').classList.remove('visible');
+      document.getElementById('domainCard').classList.remove('visible');
+      document.getElementById('emptyMsg').style.display = 'none';
+      document.getElementById('sources').style.display  = 'flex';
+      ['prtimes', 'hp', 'wantedly', 'linkedin'].forEach(s => {
+        document.getElementById(`badge-${s}`).className = 'badge';
+      });
+    }
+
+    function startSearch() {
+      const company = document.getElementById('company').value.trim();
+      if (!company) return;
+
+      reset();
+      document.getElementById('searchBtn').disabled = true;
+
+      es = new EventSource(`/api/research?company=${encodeURIComponent(company)}`);
+
+      es.addEventListener('status', e => {
+        const { source } = JSON.parse(e.data);
+        const el = document.getElementById(`badge-${source}`);
+        if (el) el.className = 'badge checking';
+      });
+
+      es.addEventListener('domain', e => {
+        const { domain } = JSON.parse(e.data);
+        if (domain) {
+          document.getElementById('domainValue').textContent = domain;
+          document.getElementById('domainCard').classList.add('visible');
+        }
+      });
+
+      es.addEventListener('source_result', e => {
+        const { source, persons } = JSON.parse(e.data);
+        const key = SOURCE_KEY[source];
+        if (key) {
+          document.getElementById(`badge-${key}`).className =
+            persons.length > 0 ? 'badge found' : 'badge empty';
+        }
+      });
+
+      es.addEventListener('done', e => {
+        const { persons } = JSON.parse(e.data);
+        renderResults(persons);
+        document.getElementById('searchBtn').disabled = false;
+        es.close();
+      });
+
+      es.addEventListener('error', () => {
+        document.getElementById('searchBtn').disabled = false;
+        es.close();
+      });
+    }
+
+    function renderResults(persons) {
+      const tbody = document.getElementById('resultBody');
+      document.getElementById('resultCard').classList.add('visible');
+
+      if (!persons || persons.length === 0) {
+        document.getElementById('emptyMsg').style.display = 'block';
+        return;
+      }
+
+      tbody.innerHTML = persons.map(p => {
+        const confClass = p.confidence === '◎' ? 'conf-a'
+                        : p.confidence === '○' ? 'conf-b' : 'conf-c';
+        const tags = (p.source || '').split(' / ')
+          .map(s => `<span class="tag">${s}</span>`).join('');
+        return `<tr>
+          <td class="name">${p.name}</td>
+          <td class="role">${p.role || '—'}</td>
+          <td><span class="conf ${confClass}">${p.confidence}</span></td>
+          <td>${tags}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Enter キーで検索
+    document.getElementById('company').addEventListener('keydown', e => {
+      if (e.key === 'Enter') startSearch();
+    });
+  </script>
+</body>
+</html>
