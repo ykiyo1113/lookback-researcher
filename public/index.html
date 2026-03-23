@@ -189,15 +189,18 @@
       reset();
       document.getElementById('searchBtn').disabled = true;
 
-      es = new EventSource(`/api/research?company=${encodeURIComponent(company)}`);
+      // currentEs にこの検索のEventSourceを固定する
+      // （es は reset() で null になることがあるため、ローカル変数で参照を保持）
+      const currentEs = new EventSource(`/api/research?company=${encodeURIComponent(company)}`);
+      es = currentEs;
 
-      es.addEventListener('status', e => {
+      currentEs.addEventListener('status', e => {
         const { source } = JSON.parse(e.data);
         const el = document.getElementById(`badge-${source}`);
         if (el) el.className = 'badge checking';
       });
 
-      es.addEventListener('domain', e => {
+      currentEs.addEventListener('domain', e => {
         const { domain } = JSON.parse(e.data);
         if (domain) {
           document.getElementById('domainValue').textContent = domain;
@@ -205,7 +208,7 @@
         }
       });
 
-      es.addEventListener('source_result', e => {
+      currentEs.addEventListener('source_result', e => {
         const { source, persons } = JSON.parse(e.data);
         const key = SOURCE_KEY[source];
         if (key) {
@@ -214,16 +217,23 @@
         }
       });
 
-      es.addEventListener('done', e => {
+      currentEs.addEventListener('done', e => {
         const { persons } = JSON.parse(e.data);
         renderResults(persons);
-        document.getElementById('searchBtn').disabled = false;
-        es.close();
+        // この検索がまだ現在の検索の場合のみボタンを戻す
+        if (es === currentEs) {
+          document.getElementById('searchBtn').disabled = false;
+          es = null;
+        }
+        currentEs.close();
       });
 
-      es.addEventListener('error', () => {
-        document.getElementById('searchBtn').disabled = false;
-        es.close();
+      currentEs.addEventListener('error', () => {
+        if (es === currentEs) {
+          document.getElementById('searchBtn').disabled = false;
+          es = null;
+        }
+        currentEs.close();
       });
     }
 
