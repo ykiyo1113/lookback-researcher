@@ -254,6 +254,19 @@
     document.getElementById('company').addEventListener('keydown', e => {
       if (e.key === 'Enter') startSearch();
     });
+
+    // ブラウザのbfcache（戻るボタン等でのページ復元）対策
+    // 復元時は前回の検索状態が残るためリセットする
+    window.addEventListener('pageshow', e => {
+      if (e.persisted) {
+        if (es) { es.close(); es = null; }
+        document.getElementById('resultBody').innerHTML = '';
+        document.getElementById('resultCard').classList.remove('visible');
+        document.getElementById('domainCard').classList.remove('visible');
+        document.getElementById('sources').style.display = 'none';
+        document.getElementById('searchBtn').disabled = false;
+      }
+    });
   </script>
 </body>
 </html>
