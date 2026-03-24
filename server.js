@@ -18,6 +18,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ─── SSE エンドポイント ────────────────────────────────────────────
 app.get('/api/research', async (req, res) => {
   const company = (req.query.company || '').trim();
+  const url     = (req.query.url     || '').trim();
 
   if (!company) {
     return res.status(400).json({ error: '会社名を入力してください' });
@@ -36,7 +37,7 @@ app.get('/api/research', async (req, res) => {
   };
 
   try {
-    await researchCompany(company, event => send(event.type, event));
+    await researchCompany(company, url, event => send(event.type, event));
   } catch (err) {
     send('error', { message: err.message });
   } finally {

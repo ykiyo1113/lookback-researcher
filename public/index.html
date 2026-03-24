@@ -59,15 +59,15 @@
 
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 
-    /* ドメイン */
-    .domain-card {
-      display: none; background: white; border-radius: 10px;
+    /* ログエリア */
+    .log-area {
+      display: none; background: #1a1a2e; border-radius: 10px;
       padding: 14px 18px; margin-bottom: 16px;
-      border: 1px solid #e0e4ea;
+      font-family: monospace; font-size: 12px; color: #7dd3a8;
+      max-height: 200px; overflow-y: auto;
     }
-    .domain-card.visible { display: block; }
-    .domain-label { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .domain-value { font-size: 16px; font-weight: 600; color: #1a1a2e; }
+    .log-area.visible { display: block; }
+    .log-line { line-height: 1.8; white-space: pre-wrap; word-break: break-all; }
 
     /* 結果テーブル */
     .result-card {
@@ -134,7 +134,7 @@
 
     <header>
       <h1>🔍 担当者リサーチ</h1>
-      <p>会社名を入力すると、Wantedly・会社HP から担当者を自動収集します。</p>
+      <p>会社名を入力すると、会社HP から担当者を自動収集します。</p>
     </header>
 
     <!-- 月間使用カウンター -->
@@ -146,21 +146,20 @@
     </div>
 
     <div class="search-box">
-      <input type="text" id="company" placeholder="例: 株式会社コスメ堂" autocomplete="off">
+      <input type="text" id="company" placeholder="会社名（例: 株式会社コスメ堂）" autocomplete="off">
+    </div>
+    <div class="search-box">
+      <input type="text" id="hpUrl" placeholder="会社HP URL（例: https://example.co.jp）" autocomplete="off">
       <button id="searchBtn" onclick="startSearch()">検索</button>
     </div>
 
     <!-- ソースステータス -->
     <div class="sources" id="sources">
-      <div class="badge" id="badge-wantedly"><span class="dot"></span>Wantedly</div>
-      <div class="badge" id="badge-hp">      <span class="dot"></span>会社HP</div>
+      <div class="badge" id="badge-hp"><span class="dot"></span>会社HP</div>
     </div>
 
-    <!-- ドメイン表示 -->
-    <div class="domain-card" id="domainCard">
-      <div class="domain-label">取得ドメイン</div>
-      <div class="domain-value" id="domainValue">—</div>
-    </div>
+    <!-- ログエリア -->
+    <div class="log-area" id="logArea"></div>
 
     <!-- 担当者テーブル -->
     <div class="result-card" id="resultCard">
@@ -214,8 +213,7 @@
     updateUsageUI(getUsageCount());
 
     const SOURCE_KEY = {
-      '会社HP':   'hp',
-      'Wantedly': 'wantedly',
+      '会社HP': 'hp',
     };
 
     let es = null;
@@ -224,12 +222,11 @@
       if (es) { es.close(); es = null; }
       document.getElementById('resultBody').innerHTML = '';
       document.getElementById('resultCard').classList.remove('visible');
-      document.getElementById('domainCard').classList.remove('visible');
+      document.getElementById('logArea').classList.remove('visible');
+      document.getElementById('logArea').innerHTML = '';
       document.getElementById('emptyMsg').style.display = 'none';
       document.getElementById('sources').style.display  = 'flex';
-      ['wantedly', 'hp'].forEach(s => {
-        document.getElementById(`badge-${s}`).className = 'badge';
-      });
+      document.getElementById('badge-hp').className = 'badge';
     }
 
     function startSearch() {
@@ -242,7 +239,10 @@
 
       // currentEs にこの検索のEventSourceを固定する
       // （es は reset() で null になることがあるため、ローカル変数で参照を保持）
-      const currentEs = new EventSource(`/api/research?company=${encodeURIComponent(company)}`);
+      const hpUrl = document.getElementById('hpUrl').value.trim();
+      const params = new URLSearchParams({ company });
+      if (hpUrl) params.set('url', hpUrl);
+      const currentEs = new EventSource(`/api/research?${params}`);
       es = currentEs;
 
       currentEs.addEventListener('status', e => {
@@ -251,12 +251,12 @@
         if (el) el.className = 'badge checking';
       });
 
-      currentEs.addEventListener('domain', e => {
-        const { domain } = JSON.parse(e.data);
-        if (domain) {
-          document.getElementById('domainValue').textContent = domain;
-          document.getElementById('domainCard').classList.add('visible');
-        }
+      currentEs.addEventListener('log', e => {
+        const { message } = JSON.parse(e.data);
+        const logArea = document.getElementById('logArea');
+        logArea.classList.add('visible');
+        logArea.innerHTML += `<div class="log-line">> ${message}</div>`;
+        logArea.scrollTop = logArea.scrollHeight;
       });
 
       currentEs.addEventListener('source_result', e => {
@@ -313,12 +313,13 @@
 
     // Enter キーで検索（IME変換中のEnterは除外）
     let isComposing = false;
-    const companyInput = document.getElementById('company');
-    companyInput.addEventListener('compositionstart', () => { isComposing = true; });
-    companyInput.addEventListener('compositionend',   () => { isComposing = false; });
-    companyInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && !isComposing) startSearch();
-    });
+    for (const el of [document.getElementById('company'), document.getElementById('hpUrl')]) {
+      el.addEventListener('compositionstart', () => { isComposing = true; });
+      el.addEventListener('compositionend',   () => { isComposing = false; });
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !isComposing) startSearch();
+      });
+    }
 
     // ブラウザのbfcache（戻るボタン等でのページ復元）対策
     // 復元時は前回の検索状態が残るためリセットする
@@ -327,7 +328,7 @@
         if (es) { es.close(); es = null; }
         document.getElementById('resultBody').innerHTML = '';
         document.getElementById('resultCard').classList.remove('visible');
-        document.getElementById('domainCard').classList.remove('visible');
+        document.getElementById('logArea').classList.remove('visible');
         document.getElementById('sources').style.display = 'none';
         document.getElementById('searchBtn').disabled = false;
       }
