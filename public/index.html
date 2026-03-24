@@ -134,7 +134,7 @@
 
     <header>
       <h1>🔍 担当者リサーチ</h1>
-      <p>会社名を入力すると、PR TIMES・会社HP・Wantedly・LinkedIn から担当者を自動収集します。</p>
+      <p>会社名を入力すると、Wantedly・会社HP から担当者を自動収集します。</p>
     </header>
 
     <!-- 月間使用カウンター -->
@@ -152,10 +152,8 @@
 
     <!-- ソースステータス -->
     <div class="sources" id="sources">
-      <div class="badge" id="badge-prtimes"><span class="dot"></span>PR TIMES</div>
-      <div class="badge" id="badge-hp">      <span class="dot"></span>会社HP</div>
       <div class="badge" id="badge-wantedly"><span class="dot"></span>Wantedly</div>
-      <div class="badge" id="badge-linkedin"><span class="dot"></span>LinkedIn</div>
+      <div class="badge" id="badge-hp">      <span class="dot"></span>会社HP</div>
     </div>
 
     <!-- ドメイン表示 -->
@@ -216,10 +214,8 @@
     updateUsageUI(getUsageCount());
 
     const SOURCE_KEY = {
-      'PR TIMES': 'prtimes',
       '会社HP':   'hp',
       'Wantedly': 'wantedly',
-      'LinkedIn': 'linkedin',
     };
 
     let es = null;
@@ -231,7 +227,7 @@
       document.getElementById('domainCard').classList.remove('visible');
       document.getElementById('emptyMsg').style.display = 'none';
       document.getElementById('sources').style.display  = 'flex';
-      ['prtimes', 'hp', 'wantedly', 'linkedin'].forEach(s => {
+      ['wantedly', 'hp'].forEach(s => {
         document.getElementById(`badge-${s}`).className = 'badge';
       });
     }
